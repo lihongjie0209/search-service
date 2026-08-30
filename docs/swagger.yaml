@@ -1,0 +1,425 @@
+basePath: /
+definitions:
+  buildinfo.Info:
+    properties:
+      build_time:
+        type: string
+      commit:
+        type: string
+      started_at:
+        type: string
+      uptime:
+        type: string
+      version:
+        type: string
+    type: object
+  health.Dependency:
+    properties:
+      latency:
+        type: string
+      status:
+        type: string
+    type: object
+  health.Status:
+    properties:
+      dependencies:
+        additionalProperties:
+          $ref: '#/definitions/health.Dependency'
+        type: object
+      status:
+        type: string
+    type: object
+  httptransport.FacetBucketDTO:
+    properties:
+      count:
+        type: integer
+      value:
+        type: string
+    type: object
+  httptransport.FacetDTO:
+    properties:
+      buckets:
+        items:
+          $ref: '#/definitions/httptransport.FacetBucketDTO'
+        type: array
+      field:
+        type: string
+    type: object
+  httptransport.GetSearchDocumentRequest:
+    properties:
+      id:
+        type: string
+      tenant_id:
+        type: string
+    required:
+    - id
+    - tenant_id
+    type: object
+  httptransport.HighlightDTO:
+    properties:
+      field:
+        type: string
+      fragments:
+        items:
+          type: string
+        type: array
+    type: object
+  httptransport.MeResponseBody:
+    properties:
+      subject:
+        type: string
+    type: object
+  httptransport.Response:
+    properties:
+      body: {}
+      code:
+        type: integer
+      message:
+        type: string
+      request_id:
+        type: string
+    type: object
+  httptransport.SearchDocumentDTO:
+    properties:
+      application_id:
+        type: string
+      attributes:
+        additionalProperties:
+          type: string
+        type: object
+      content:
+        type: string
+      document_type:
+        type: string
+      icon:
+        type: string
+      id:
+        type: string
+      keywords:
+        items:
+          type: string
+        type: array
+      permission_code:
+        type: string
+      source_created_at:
+        type: string
+      source_id:
+        type: string
+      source_service:
+        type: string
+      source_updated_at:
+        type: string
+      source_version:
+        type: integer
+      summary:
+        type: string
+      tenant_id:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  httptransport.SearchHitDTO:
+    properties:
+      document:
+        $ref: '#/definitions/httptransport.SearchDocumentDTO'
+      highlights:
+        items:
+          $ref: '#/definitions/httptransport.HighlightDTO'
+        type: array
+      score:
+        type: number
+    type: object
+  httptransport.SearchPageDTO:
+    properties:
+      facets:
+        items:
+          $ref: '#/definitions/httptransport.FacetDTO'
+        type: array
+      items:
+        items:
+          $ref: '#/definitions/httptransport.SearchHitDTO'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      took_milliseconds:
+        type: integer
+      total:
+        type: integer
+    type: object
+  httptransport.SearchRequest:
+    properties:
+      application_ids:
+        items:
+          type: string
+        type: array
+      document_types:
+        items:
+          type: string
+        type: array
+      facet_fields:
+        items:
+          type: string
+        type: array
+      filters:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      page:
+        type: integer
+      page_size:
+        type: integer
+      query:
+        type: string
+      sort:
+        type: string
+      tenant_id:
+        type: string
+    required:
+    - tenant_id
+    type: object
+  httptransport.SuggestRequest:
+    properties:
+      document_types:
+        items:
+          type: string
+        type: array
+      limit:
+        type: integer
+      prefix:
+        type: string
+      tenant_id:
+        type: string
+    required:
+    - prefix
+    - tenant_id
+    type: object
+  httptransport.SuggestResponseDTO:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/httptransport.SuggestionDTO'
+        type: array
+    type: object
+  httptransport.SuggestionDTO:
+    properties:
+      document_type:
+        type: string
+      source_id:
+        type: string
+      text:
+        type: string
+      url:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: 'Tenant-scoped global search API. Error codes: 0 success; 10000-19999
+    common/input; 20000-29999 authentication/authorization; 30000-39999 business;
+    50000-59999 infrastructure.'
+  title: Platform Search Service API
+  version: "1.0"
+paths:
+  /api/v1/me:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.Response'
+            - properties:
+                body:
+                  $ref: '#/definitions/httptransport.MeResponseBody'
+              type: object
+        "401":
+          description: 'Code 20001: unauthorized'
+          schema:
+            $ref: '#/definitions/httptransport.Response'
+      security:
+      - Bearer: []
+      summary: Return the authenticated subject
+      tags:
+      - authentication
+  /api/v1/search/get:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Document identity
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httptransport.GetSearchDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.Response'
+            - properties:
+                body:
+                  $ref: '#/definitions/httptransport.SearchDocumentDTO'
+              type: object
+        "404":
+          description: 'Code 10004: document not found'
+          schema:
+            $ref: '#/definitions/httptransport.Response'
+      security:
+      - Bearer: []
+      summary: Get one tenant-visible search document
+      tags:
+      - search
+  /api/v1/search/query:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Search query
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httptransport.SearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.Response'
+            - properties:
+                body:
+                  $ref: '#/definitions/httptransport.SearchPageDTO'
+              type: object
+        "400":
+          description: 'Code 10001: invalid request'
+          schema:
+            $ref: '#/definitions/httptransport.Response'
+        "401":
+          description: 'Code 20001: unauthorized'
+          schema:
+            $ref: '#/definitions/httptransport.Response'
+        "503":
+          description: 'Code 50003: search unavailable'
+          schema:
+            $ref: '#/definitions/httptransport.Response'
+      security:
+      - Bearer: []
+      summary: Search tenant-visible documents
+      tags:
+      - search
+  /api/v1/search/suggest:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Suggestion prefix
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httptransport.SuggestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.Response'
+            - properties:
+                body:
+                  $ref: '#/definitions/httptransport.SuggestResponseDTO'
+              type: object
+      security:
+      - Bearer: []
+      summary: Suggest tenant-visible documents
+      tags:
+      - search
+  /api/v1/version:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.Response'
+            - properties:
+                body:
+                  $ref: '#/definitions/buildinfo.Info'
+              type: object
+      summary: Return build and runtime version information
+      tags:
+      - operations
+  /live:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.Response'
+            - properties:
+                body:
+                  $ref: '#/definitions/health.Status'
+              type: object
+      summary: Check process liveness
+      tags:
+      - operations
+  /ready:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.Response'
+            - properties:
+                body:
+                  $ref: '#/definitions/health.Status'
+              type: object
+        "503":
+          description: 'Code 50003: dependency unavailable'
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.Response'
+            - properties:
+                body:
+                  $ref: '#/definitions/health.Status'
+              type: object
+      summary: Check database and Redis readiness
+      tags:
+      - operations
+schemes:
+- http
+- https
+securityDefinitions:
+  Bearer:
+    description: Enter "Bearer {JWT}".
+    in: header
+    name: Authorization
+    type: apiKey
+  PSK:
+    description: Enter "PSK {shared-key}" for routes configured with PSK authentication.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

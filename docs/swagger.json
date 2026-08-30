@@ -1,0 +1,691 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Tenant-scoped global search API. Error codes: 0 success; 10000-19999 common/input; 20000-29999 authentication/authorization; 30000-39999 business; 50000-59999 infrastructure.",
+        "title": "Platform Search Service API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/api/v1/me": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "authentication"
+                ],
+                "summary": "Return the authenticated subject",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "$ref": "#/definitions/httptransport.MeResponseBody"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Code 20001: unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/search/get": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Get one tenant-visible search document",
+                "parameters": [
+                    {
+                        "description": "Document identity",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.GetSearchDocumentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "$ref": "#/definitions/httptransport.SearchDocumentDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Code 10004: document not found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/search/query": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Search tenant-visible documents",
+                "parameters": [
+                    {
+                        "description": "Search query",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.SearchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "$ref": "#/definitions/httptransport.SearchPageDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Code 10001: invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Code 20001: unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Code 50003: search unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/search/suggest": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "search"
+                ],
+                "summary": "Suggest tenant-visible documents",
+                "parameters": [
+                    {
+                        "description": "Suggestion prefix",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.SuggestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "$ref": "#/definitions/httptransport.SuggestResponseDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/version": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operations"
+                ],
+                "summary": "Return build and runtime version information",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "$ref": "#/definitions/buildinfo.Info"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/live": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operations"
+                ],
+                "summary": "Check process liveness",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "$ref": "#/definitions/health.Status"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/ready": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operations"
+                ],
+                "summary": "Check database and Redis readiness",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "$ref": "#/definitions/health.Status"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "503": {
+                        "description": "Code 50003: dependency unavailable",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "body": {
+                                            "$ref": "#/definitions/health.Status"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "buildinfo.Info": {
+            "type": "object",
+            "properties": {
+                "build_time": {
+                    "type": "string"
+                },
+                "commit": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "health.Dependency": {
+            "type": "object",
+            "properties": {
+                "latency": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "health.Status": {
+            "type": "object",
+            "properties": {
+                "dependencies": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/health.Dependency"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.FacetBucketDTO": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.FacetDTO": {
+            "type": "object",
+            "properties": {
+                "buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httptransport.FacetBucketDTO"
+                    }
+                },
+                "field": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.GetSearchDocumentRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "tenant_id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.HighlightDTO": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "fragments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "httptransport.MeResponseBody": {
+            "type": "object",
+            "properties": {
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.Response": {
+            "type": "object",
+            "properties": {
+                "body": {},
+                "code": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.SearchDocumentDTO": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "type": "string"
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "content": {
+                    "type": "string"
+                },
+                "document_type": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "permission_code": {
+                    "type": "string"
+                },
+                "source_created_at": {
+                    "type": "string"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "source_service": {
+                    "type": "string"
+                },
+                "source_updated_at": {
+                    "type": "string"
+                },
+                "source_version": {
+                    "type": "integer"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.SearchHitDTO": {
+            "type": "object",
+            "properties": {
+                "document": {
+                    "$ref": "#/definitions/httptransport.SearchDocumentDTO"
+                },
+                "highlights": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httptransport.HighlightDTO"
+                    }
+                },
+                "score": {
+                    "type": "number"
+                }
+            }
+        },
+        "httptransport.SearchPageDTO": {
+            "type": "object",
+            "properties": {
+                "facets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httptransport.FacetDTO"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httptransport.SearchHitDTO"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "took_milliseconds": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "httptransport.SearchRequest": {
+            "type": "object",
+            "required": [
+                "tenant_id"
+            ],
+            "properties": {
+                "application_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "document_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "facet_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "sort": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.SuggestRequest": {
+            "type": "object",
+            "required": [
+                "prefix",
+                "tenant_id"
+            ],
+            "properties": {
+                "document_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "prefix": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httptransport.SuggestResponseDTO": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/httptransport.SuggestionDTO"
+                    }
+                }
+            }
+        },
+        "httptransport.SuggestionDTO": {
+            "type": "object",
+            "properties": {
+                "document_type": {
+                    "type": "string"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "Bearer": {
+            "description": "Enter \"Bearer {JWT}\".",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "PSK": {
+            "description": "Enter \"PSK {shared-key}\" for routes configured with PSK authentication.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

@@ -1,0 +1,15 @@
+app:
+  env: compose
+log:
+  level: debug
+  file: /app/logs/app.log
+swagger:
+  enabled: true
+database:
+  name: platform
+  schema: search
+grpc:
+  reflection_enabled: true
+opensearch:
+  enabled: true
+  addresses: [http://opensearch:9200]

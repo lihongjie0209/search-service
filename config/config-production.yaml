@@ -1,0 +1,58 @@
+# Production deliberately fails fast until secrets, endpoints, and TLS files
+# are injected through APP_* variables or the platform secret manager.
+app:
+  env: production
+http:
+  address: 0.0.0.0:8080
+log:
+  level: info
+  format: json
+swagger:
+  enabled: false
+  require_auth: true
+grpc:
+  address: 0.0.0.0:9090
+  reflection_enabled: false
+  tls:
+    enabled: true
+    cert_file: ""
+    key_file: ""
+database:
+  enabled: true
+  name: platform
+  schema: search
+  dsn: ""
+redis:
+  enabled: true
+migration:
+  auto_up: true
+  create_schema: false
+  database_url: ""
+rate_limit:
+  enabled: true
+idempotency:
+  enabled: true
+observability:
+  metrics_enabled: true
+  tracing_enabled: false
+opensearch:
+  enabled: true
+  addresses: []
+outbound:
+  grpc:
+    authorization:
+      target: dns:///authorization-service.platform.svc.cluster.local:9090
+      timeout: 5s
+      retry:
+        max_attempts: 3
+        initial_backoff: 100ms
+        max_backoff: 1s
+        methods: [/platform.authorization.v1.AuthorizationService/ListBindings]
+      breaker:
+        enabled: true
+        failure_threshold: 5
+        open_timeout: 30s
+      tls:
+        enabled: true
+        server_name: authorization-service
+        ca_file: /etc/search-service/tls/ca.crt
