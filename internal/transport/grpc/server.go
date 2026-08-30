@@ -132,16 +132,33 @@ func (s *searchServer) GetDocument(ctx context.Context, request *searchv1.GetDoc
 	return &searchv1.GetDocumentResponse{Document: document}, nil
 }
 func (s *searchServer) BatchUpsertDocuments(ctx context.Context, request *searchv1.BatchUpsertDocumentsRequest) (*searchv1.BatchUpsertDocumentsResponse, error) {
+	if err := requireIndexer(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.service.BatchUpsert(ctx, request.GetDocuments()); err != nil {
 		return nil, searchError(err)
 	}
 	return &searchv1.BatchUpsertDocumentsResponse{Accepted: uint32(len(request.GetDocuments()))}, nil
 }
 func (s *searchServer) BatchDeleteDocuments(ctx context.Context, request *searchv1.BatchDeleteDocumentsRequest) (*searchv1.BatchDeleteDocumentsResponse, error) {
+	if err := requireIndexer(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.service.BatchDelete(ctx, request.GetDocuments()); err != nil {
 		return nil, searchError(err)
 	}
 	return &searchv1.BatchDeleteDocumentsResponse{Accepted: uint32(len(request.GetDocuments()))}, nil
+}
+
+func requireIndexer(ctx context.Context) error {
+	identity, ok := platformprincipal.FromContext(ctx)
+	if !ok {
+		return status.Error(codes.Unauthenticated, "authenticated service principal is required")
+	}
+	if identity.Type != platformprincipal.TypeServiceAccount && identity.Type != platformprincipal.TypeSystem {
+		return status.Error(codes.PermissionDenied, "service principal is required for indexing")
+	}
+	return nil
 }
 
 func callerVisibility(ctx context.Context, tenantID string, access *searchauth.Resolver) ([]string, error) {

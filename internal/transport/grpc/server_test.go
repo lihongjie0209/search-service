@@ -64,3 +64,14 @@ func TestAuthenticateGRPC_JWTInjectsPrincipal(t *testing.T) {
 		t.Fatalf("principal = %#v, %v", value, ok)
 	}
 }
+
+func TestRequireIndexerRejectsUser(t *testing.T) {
+	ctx := platformprincipal.WithContext(t.Context(), platformprincipal.Principal{ID: "user-1", Type: platformprincipal.TypeUser})
+	if code := status.Code(requireIndexer(ctx)); code != codes.PermissionDenied {
+		t.Fatalf("code = %s", code)
+	}
+	ctx = platformprincipal.WithContext(t.Context(), platformprincipal.Principal{ID: "service-1", Type: platformprincipal.TypeServiceAccount})
+	if err := requireIndexer(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
