@@ -10,6 +10,7 @@ import (
 	authorizationv1 "github.com/lihongjie0209/platform-protos/gen/go/platform/authorization/v1"
 	commonv1 "github.com/lihongjie0209/platform-protos/gen/go/platform/common/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 const pageSize = 200
@@ -43,6 +44,7 @@ func (r *Resolver) VisibilityTokens(ctx context.Context, tenantID string) ([]str
 	if r == nil || identity.MembershipID == "" {
 		return tokens, nil
 	}
+	ctx = forwardIncomingAuthorization(ctx)
 	seen := map[string]struct{}{}
 	for page := uint32(1); page <= 100; page++ {
 		response, err := r.client.ListBindings(ctx, &authorizationv1.ListBindingsRequest{TenantId: tenantID, Subject: &authorizationv1.Subject{Id: identity.MembershipID, Type: authorizationv1.SubjectType_SUBJECT_TYPE_MEMBERSHIP}, Page: &commonv1.PageRequest{Page: page, PageSize: pageSize}})
@@ -65,4 +67,24 @@ func (r *Resolver) VisibilityTokens(ctx context.Context, tenantID string) ([]str
 		}
 	}
 	return nil, fmt.Errorf("authorization bindings exceed pagination safety limit")
+}
+
+// WithAuthorization explicitly forwards an already verified caller credential to
+// authorization-service. Generic outbound clients intentionally do not forward it.
+func WithAuthorization(ctx context.Context, authorization string) context.Context {
+	if authorization == "" {
+		return ctx
+	}
+	return metadata.AppendToOutgoingContext(ctx, "authorization", authorization)
+}
+
+func forwardIncomingAuthorization(ctx context.Context) context.Context {
+	if outgoing, ok := metadata.FromOutgoingContext(ctx); ok && len(outgoing.Get("authorization")) != 0 {
+		return ctx
+	}
+	values := metadata.ValueFromIncomingContext(ctx, "authorization")
+	if len(values) == 0 {
+		return ctx
+	}
+	return metadata.AppendToOutgoingContext(ctx, "authorization", values[0])
 }

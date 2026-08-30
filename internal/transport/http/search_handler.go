@@ -183,7 +183,8 @@ func (h *Handler) GetSearchDocument(c *gin.Context) {
 
 func (h *Handler) visibility(c *gin.Context, tenantID string) ([]string, error) {
 	if h.access != nil {
-		values, err := h.access.VisibilityTokens(c.Request.Context(), tenantID)
+		ctx := searchauth.WithAuthorization(c.Request.Context(), c.GetHeader("Authorization"))
+		values, err := h.access.VisibilityTokens(ctx, tenantID)
 		if err != nil {
 			if errors.Is(err, searchauth.ErrForbidden) {
 				return nil, apperror.Forbidden("tenant access denied")
