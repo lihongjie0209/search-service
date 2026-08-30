@@ -13,7 +13,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const pageSize = 200
+// authorization-service's shared pagination contract caps page_size at 100.
+const pageSize = 100
 
 var ErrForbidden = errors.New("search visibility forbidden")
 
