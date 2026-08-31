@@ -42,7 +42,7 @@ func newSearchInbox(db *sqlx.DB, cfg config.Config) (*platforminbox.SQLStore, er
 }
 
 func newSearchInboxRetentionCleaner(inbox *platforminbox.SQLStore, cfg config.Config) (*platforminbox.RetentionCleaner, error) {
-	if inbox == nil {
+	if inbox == nil || !cfg.EventBus.Enabled {
 		return nil, nil
 	}
 	return platforminbox.NewRetentionCleaner(inbox, platforminbox.RetentionConfig{Retention: cfg.EventBus.InboxRetention, BatchSize: cfg.EventBus.InboxCleanupBatchSize})
