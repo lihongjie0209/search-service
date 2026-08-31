@@ -1,5 +1,7 @@
 # search-service
 
+搜索投影的 completed Inbox 记录默认保留 14 天（大于 JetStream 默认回放窗口），服务按 500 条有界批次清理。失败或处理中记录不会删除，确保重投与诊断边界不被破坏。
+
 Tenant-scoped global search projection for the microservice platform. The service stores no source-of-truth business records: owning services publish versioned search-document events through NATS JetStream, and this service maintains an OpenSearch projection.
 
 ## Interfaces

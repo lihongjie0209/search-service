@@ -139,6 +139,9 @@ event_bus:
   consumer_max_ack_pending: 64
   dead_letter_subject: platform.system.event.dead-lettered.v1
   dead_letter_max_data_bytes: 1048576
+  inbox_retention: 336h
+  inbox_cleanup_interval: 1h
+  inbox_cleanup_batch_size: 500
 
 # Named outbound clients. Put environment-specific endpoints and credentials in
 # config-{env}.yaml or APP_ variables.

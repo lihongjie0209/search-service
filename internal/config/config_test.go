@@ -111,4 +111,7 @@ func TestLoad_UsesCanonicalPlatformEventStream(t *testing.T) {
 	if cfg.EventBus.StreamName != "PLATFORM_EVENTS" || len(cfg.EventBus.Subjects) != 1 || cfg.EventBus.Subjects[0] != "platform.>" {
 		t.Fatalf("unexpected event stream defaults: %q %#v", cfg.EventBus.StreamName, cfg.EventBus.Subjects)
 	}
+	if cfg.EventBus.InboxRetention != 14*24*time.Hour || cfg.EventBus.InboxCleanupInterval != time.Hour || cfg.EventBus.InboxCleanupBatchSize != 500 {
+		t.Fatalf("unexpected inbox retention defaults: %+v", cfg.EventBus)
+	}
 }

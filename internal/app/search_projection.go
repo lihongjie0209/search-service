@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	platforminbox "github.com/lihongjie0209/microservice-platform-go/inbox"
@@ -40,7 +41,14 @@ func newSearchInbox(db *sqlx.DB, cfg config.Config) (*platforminbox.SQLStore, er
 	return platforminbox.NewSQLStore(db, dialect, table)
 }
 
-func startSearchProjection(lifecycle fx.Lifecycle, cfg config.Config, bus *eventbus.Bus, inbox *platforminbox.SQLStore, service *searchapp.Service, logger *slog.Logger) {
+func newSearchInboxRetentionCleaner(inbox *platforminbox.SQLStore, cfg config.Config) (*platforminbox.RetentionCleaner, error) {
+	if inbox == nil {
+		return nil, nil
+	}
+	return platforminbox.NewRetentionCleaner(inbox, platforminbox.RetentionConfig{Retention: cfg.EventBus.InboxRetention, BatchSize: cfg.EventBus.InboxCleanupBatchSize})
+}
+
+func startSearchProjection(lifecycle fx.Lifecycle, cfg config.Config, bus *eventbus.Bus, inbox *platforminbox.SQLStore, inboxCleaner *platforminbox.RetentionCleaner, service *searchapp.Service, logger *slog.Logger) {
 	var cancel context.CancelFunc
 	var worker sync.WaitGroup
 	lifecycle.Append(fx.Hook{OnStart: func(context.Context) error {
@@ -66,6 +74,24 @@ func startSearchProjection(lifecycle fx.Lifecycle, cfg config.Config, bus *event
 				logger.Error("search projection stopped", "error", err)
 			}
 		}()
+		if inboxCleaner != nil {
+			worker.Add(1)
+			go func() {
+				defer worker.Done()
+				ticker := time.NewTicker(cfg.EventBus.InboxCleanupInterval)
+				defer ticker.Stop()
+				for {
+					if _, err := inboxCleaner.RunOnce(runCtx); err != nil && !errors.Is(err, context.Canceled) {
+						logger.Error("search inbox retention cleaner failed", "error", err)
+					}
+					select {
+					case <-runCtx.Done():
+						return
+					case <-ticker.C:
+					}
+				}
+			}()
+		}
 		return nil
 	}, OnStop: func(context.Context) error {
 		if cancel != nil {
@@ -101,4 +127,4 @@ func applySearchEvent(ctx context.Context, service *searchapp.Service, envelope 
 	}
 }
 
-var SearchProjectionModule = fx.Module("search-projection", fx.Provide(newSearchInbox), fx.Invoke(startSearchProjection))
+var SearchProjectionModule = fx.Module("search-projection", fx.Provide(newSearchInbox, newSearchInboxRetentionCleaner), fx.Invoke(startSearchProjection))

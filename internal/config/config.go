@@ -208,6 +208,9 @@ type EventBus struct {
 	ConsumerMaxAckPending  int           `mapstructure:"consumer_max_ack_pending"`
 	DeadLetterSubject      string        `mapstructure:"dead_letter_subject"`
 	DeadLetterMaxDataBytes int           `mapstructure:"dead_letter_max_data_bytes"`
+	InboxRetention         time.Duration `mapstructure:"inbox_retention"`
+	InboxCleanupInterval   time.Duration `mapstructure:"inbox_cleanup_interval"`
+	InboxCleanupBatchSize  int           `mapstructure:"inbox_cleanup_batch_size"`
 }
 type Outbound struct {
 	HTTP map[string]HTTPUpstream `mapstructure:"http"`
@@ -433,6 +436,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("event_bus.consumer_max_ack_pending", 64)
 	v.SetDefault("event_bus.dead_letter_subject", "platform.system.event.dead-lettered.v1")
 	v.SetDefault("event_bus.dead_letter_max_data_bytes", 1<<20)
+	v.SetDefault("event_bus.inbox_retention", "336h")
+	v.SetDefault("event_bus.inbox_cleanup_interval", "1h")
+	v.SetDefault("event_bus.inbox_cleanup_batch_size", 500)
 	v.SetDefault("outbound.http", map[string]any{})
 	v.SetDefault("outbound.grpc", map[string]any{})
 }
@@ -552,7 +558,7 @@ func (c Config) Validate() error {
 	if c.EventBus.Enabled && (len(c.EventBus.URLs) == 0 || c.EventBus.StreamName == "" || len(c.EventBus.Subjects) == 0 || (c.EventBus.Storage != "file" && c.EventBus.Storage != "memory") || c.EventBus.MaxAge <= 0 || c.EventBus.DuplicateWindow <= 0 || c.EventBus.ConnectTimeout <= 0 || c.EventBus.ReconnectWait <= 0 || c.EventBus.PublishTimeout <= 0 || c.EventBus.ConsumerAckWait <= 0 || c.EventBus.ConsumerMaxDeliver <= 0) {
 		return errors.New("enabled event_bus requires URLs, stream, subjects, valid storage, positive timeouts, and max deliveries")
 	}
-	if c.EventBus.Enabled && (c.EventBus.ConsumerAckTimeout <= 0 || c.EventBus.ConsumerHandlerTimeout <= 0 || c.EventBus.ConsumerHandlerTimeout >= c.EventBus.ConsumerAckWait || c.EventBus.ConsumerRetryDelay <= 0 || c.EventBus.ConsumerMaxRetryDelay < c.EventBus.ConsumerRetryDelay || c.EventBus.ConsumerMaxAckPending <= 0 || c.EventBus.DeadLetterSubject == "" || c.EventBus.DeadLetterMaxDataBytes <= 0) {
+	if c.EventBus.Enabled && (c.EventBus.ConsumerAckTimeout <= 0 || c.EventBus.ConsumerHandlerTimeout <= 0 || c.EventBus.ConsumerHandlerTimeout >= c.EventBus.ConsumerAckWait || c.EventBus.ConsumerRetryDelay <= 0 || c.EventBus.ConsumerMaxRetryDelay < c.EventBus.ConsumerRetryDelay || c.EventBus.ConsumerMaxAckPending <= 0 || c.EventBus.DeadLetterSubject == "" || c.EventBus.DeadLetterMaxDataBytes <= 0 || c.EventBus.InboxRetention <= 0 || c.EventBus.InboxCleanupInterval <= 0 || c.EventBus.InboxCleanupBatchSize <= 0) {
 		return errors.New("event_bus consumer timeouts, retry policy, ack limit, and dead-letter settings are invalid")
 	}
 	for name, upstream := range c.Outbound.HTTP {
