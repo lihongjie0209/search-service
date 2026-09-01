@@ -151,7 +151,7 @@ func (e *Engine) Search(ctx context.Context, request *searchv1.SearchRequest, vi
 }
 
 func (e *Engine) Suggest(ctx context.Context, request *searchv1.SuggestRequest, visibility []string) (*searchv1.SuggestResponse, error) {
-	searchRequest := &searchv1.SearchRequest{TenantId: request.TenantId, Query: request.Prefix, DocumentTypes: request.DocumentTypes, Page: 1, PageSize: request.Limit}
+	searchRequest := &searchv1.SearchRequest{TenantId: request.TenantId, Query: request.Prefix, DocumentTypes: request.DocumentTypes, ApplicationIds: request.ApplicationIds, Page: 1, PageSize: request.Limit}
 	result, err := e.Search(ctx, searchRequest, visibility)
 	if err != nil {
 		return nil, err

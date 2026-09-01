@@ -29,6 +29,34 @@ func TestBuildSearchQueryEnforcesTenantVisibilityAndAllowlist(t *testing.T) {
 	}
 }
 
+func TestSuggestForwardsApplicationScopeToSearch(t *testing.T) {
+	var requestBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if err := json.NewDecoder(request.Body).Decode(&requestBody); err != nil {
+			t.Fatal(err)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"took":1,"hits":{"total":{"value":0},"hits":[]},"aggregations":{}}`))
+	}))
+	defer server.Close()
+	client, err := opensearch.NewClient(opensearch.Config{Addresses: []string{server.URL}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := &Engine{client: client, index: "documents"}
+	_, err = engine.Suggest(t.Context(), &searchv1.SuggestRequest{TenantId: "tenant-1", Prefix: "inv", ApplicationIds: []string{"app-1"}, Limit: 10}, []string{"tenant:tenant-1:*"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(requestBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), "applicationId") || !strings.Contains(string(encoded), "app-1") {
+		t.Fatalf("suggest query does not contain application scope: %s", encoded)
+	}
+}
+
 func TestUpsertUsesExternalVersion(t *testing.T) {
 	var path, query string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

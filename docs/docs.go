@@ -631,6 +631,12 @@ const docTemplate = `{
                 "tenant_id"
             ],
             "properties": {
+                "application_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "document_types": {
                     "type": "array",
                     "items": {

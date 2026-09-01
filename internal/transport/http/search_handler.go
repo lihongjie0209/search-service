@@ -25,10 +25,11 @@ type SearchRequest struct {
 }
 
 type SuggestRequest struct {
-	TenantID      string   `json:"tenant_id" binding:"required"`
-	Prefix        string   `json:"prefix" binding:"required"`
-	DocumentTypes []string `json:"document_types"`
-	Limit         uint32   `json:"limit"`
+	TenantID       string   `json:"tenant_id" binding:"required"`
+	Prefix         string   `json:"prefix" binding:"required"`
+	DocumentTypes  []string `json:"document_types"`
+	ApplicationIDs []string `json:"application_ids"`
+	Limit          uint32   `json:"limit"`
 }
 type GetSearchDocumentRequest struct {
 	TenantID string `json:"tenant_id" binding:"required"`
@@ -144,7 +145,7 @@ func (h *Handler) Suggest(c *gin.Context) {
 		Fail(c, h.logger, scopeErr)
 		return
 	}
-	response, err := h.search.Suggest(c.Request.Context(), &searchv1.SuggestRequest{TenantId: request.TenantID, Prefix: request.Prefix, DocumentTypes: request.DocumentTypes, Limit: request.Limit}, visibility)
+	response, err := h.search.Suggest(c.Request.Context(), &searchv1.SuggestRequest{TenantId: request.TenantID, Prefix: request.Prefix, DocumentTypes: request.DocumentTypes, ApplicationIds: request.ApplicationIDs, Limit: request.Limit}, visibility)
 	if err != nil {
 		Fail(c, h.logger, searchAppError(err))
 		return

@@ -185,6 +185,10 @@ definitions:
     type: object
   httptransport.SuggestRequest:
     properties:
+      application_ids:
+        items:
+          type: string
+        type: array
       document_types:
         items:
           type: string
