@@ -559,6 +559,11 @@ func (c Config) Validate() error {
 	if c.OpenSearch.Enabled && (len(c.OpenSearch.Addresses) == 0 || c.OpenSearch.Index == "" || c.OpenSearch.Timeout <= 0) {
 		return errors.New("enabled opensearch requires addresses, index, and a positive timeout")
 	}
+	if c.OpenSearch.Enabled {
+		if _, ok := c.Outbound.GRPC["application"]; !ok {
+			return errors.New("enabled opensearch requires outbound.grpc.application")
+		}
+	}
 	if c.App.Env == "production" && c.OpenSearch.InsecureSkipVerify {
 		return errors.New("opensearch.insecure_skip_verify is forbidden in production")
 	}

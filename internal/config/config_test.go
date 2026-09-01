@@ -20,6 +20,19 @@ func TestConfig_AuthorizationRequiresConfiguredUpstream(t *testing.T) {
 	}
 }
 
+func TestConfig_OpenSearchRequiresApplicationUpstream(t *testing.T) {
+	cfg, err := Load("../../config/config.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.OpenSearch.Enabled = true
+	cfg.OpenSearch.Addresses = []string{"http://127.0.0.1:9200"}
+	delete(cfg.Outbound.GRPC, "application")
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "outbound.grpc.application") {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestConfig_ProductionRequiresAuthorization(t *testing.T) {
 	cfg, err := Load("../../config/config.yaml")
 	if err != nil {
@@ -55,7 +68,7 @@ func TestLoad_EnvironmentOverridesFile(t *testing.T) {
 func TestLoad_OpenSearchAddressesFromEnvironment(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(configPath, []byte("opensearch:\n  enabled: true\n"), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte("opensearch:\n  enabled: true\noutbound:\n  grpc:\n    application:\n      target: 127.0.0.1:9090\n      timeout: 1s\n      retry: {max_attempts: 1, initial_backoff: 1ms, max_backoff: 1ms}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("APP_OPENSEARCH_ADDRESSES", "http://search-a:9200,http://search-b:9200")

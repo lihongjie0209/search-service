@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lihongjie0209/microservice-platform-go/appaccess"
 	searchv1 "github.com/lihongjie0209/platform-protos/gen/go/platform/search/v1"
 	"go.uber.org/fx"
 )
@@ -14,11 +15,13 @@ const (
 	defaultPageSize = 20
 	maxPageSize     = 100
 	maxBatchSize    = 500
+	maxApplications = 100
 )
 
 var (
 	ErrInvalidArgument = errors.New("invalid search argument")
 	ErrNotFound        = errors.New("search document not found")
+	ErrForbidden       = errors.New("search application access denied")
 	ErrUnavailable     = errors.New("search engine unavailable")
 )
 
@@ -33,9 +36,35 @@ type Engine interface {
 	Delete(context.Context, []*searchv1.DocumentKey) error
 }
 
-type Service struct{ engine Engine }
+type Service struct {
+	engine       Engine
+	applications ApplicationAccess
+}
 
-func New(engine Engine) *Service { return &Service{engine: engine} }
+type ApplicationAccess interface {
+	Check(context.Context, string, []string) (map[string]appaccess.Decision, error)
+}
+
+type allowAllApplications struct{}
+
+func (allowAllApplications) Check(_ context.Context, _ string, applicationIDs []string) (map[string]appaccess.Decision, error) {
+	result := make(map[string]appaccess.Decision, len(applicationIDs))
+	for _, applicationID := range applicationIDs {
+		result[applicationID] = appaccess.Decision{Granted: true}
+	}
+	return result, nil
+}
+
+func New(engine Engine) *Service {
+	return &Service{engine: engine, applications: allowAllApplications{}}
+}
+
+func NewRuntime(engine Engine, applications ApplicationAccess) (*Service, error) {
+	if applications == nil {
+		return nil, errors.New("application verifier is required")
+	}
+	return &Service{engine: engine, applications: applications}, nil
+}
 
 func (s *Service) Ping(ctx context.Context) error { return s.engine.Ping(ctx) }
 
@@ -43,6 +72,11 @@ func (s *Service) Search(ctx context.Context, request *searchv1.SearchRequest, v
 	if request == nil || strings.TrimSpace(request.GetTenantId()) == "" {
 		return nil, fmt.Errorf("%w: tenant_id is required", ErrInvalidArgument)
 	}
+	applications, err := s.authorizeApplications(ctx, request.GetTenantId(), request.GetApplicationIds())
+	if err != nil {
+		return nil, err
+	}
+	request.ApplicationIds = applications
 	normalizePage(request)
 	return s.engine.Search(ctx, request, normalizeVisibility(request.GetTenantId(), visibility))
 }
@@ -51,6 +85,11 @@ func (s *Service) Suggest(ctx context.Context, request *searchv1.SuggestRequest,
 	if request == nil || strings.TrimSpace(request.GetTenantId()) == "" || strings.TrimSpace(request.GetPrefix()) == "" {
 		return nil, fmt.Errorf("%w: tenant_id and prefix are required", ErrInvalidArgument)
 	}
+	applications, err := s.authorizeApplications(ctx, request.GetTenantId(), request.GetApplicationIds())
+	if err != nil {
+		return nil, err
+	}
+	request.ApplicationIds = applications
 	if request.Limit == 0 {
 		request.Limit = 10
 	}
@@ -64,7 +103,48 @@ func (s *Service) Get(ctx context.Context, tenantID, id string, visibility []str
 	if strings.TrimSpace(tenantID) == "" || strings.TrimSpace(id) == "" {
 		return nil, fmt.Errorf("%w: tenant_id and id are required", ErrInvalidArgument)
 	}
-	return s.engine.Get(ctx, tenantID, id, normalizeVisibility(tenantID, visibility))
+	document, err := s.engine.Get(ctx, tenantID, id, normalizeVisibility(tenantID, visibility))
+	if err != nil {
+		return nil, err
+	}
+	if document.GetApplicationId() != "" {
+		if _, err := s.authorizeApplications(ctx, tenantID, []string{document.GetApplicationId()}); err != nil {
+			return nil, err
+		}
+	}
+	return document, nil
+}
+
+func (s *Service) authorizeApplications(ctx context.Context, tenantID string, values []string) ([]string, error) {
+	if len(values) > maxApplications {
+		return nil, fmt.Errorf("%w: application_ids must contain at most %d items", ErrInvalidArgument, maxApplications)
+	}
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		applicationID := strings.TrimSpace(value)
+		if applicationID == "" {
+			return nil, fmt.Errorf("%w: application_ids cannot contain empty values", ErrInvalidArgument)
+		}
+		if _, ok := seen[applicationID]; ok {
+			continue
+		}
+		seen[applicationID] = struct{}{}
+		result = append(result, applicationID)
+	}
+	if len(result) == 0 {
+		return result, nil
+	}
+	decisions, err := s.applications.Check(ctx, strings.TrimSpace(tenantID), result)
+	if err != nil {
+		return nil, fmt.Errorf("%w: verify application access: %v", ErrUnavailable, err)
+	}
+	for _, applicationID := range result {
+		if !decisions[applicationID].Granted {
+			return nil, fmt.Errorf("%w: application %s", ErrForbidden, applicationID)
+		}
+	}
+	return result, nil
 }
 
 func (s *Service) BatchUpsert(ctx context.Context, documents []*searchv1.SearchDocument) error {
@@ -146,4 +226,4 @@ func normalizeVisibility(tenantID string, values []string) []string {
 	return result
 }
 
-var Module = fx.Module("search", fx.Provide(New))
+var Module = fx.Module("search", fx.Provide(NewRuntime))

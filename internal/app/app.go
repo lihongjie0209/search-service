@@ -40,6 +40,7 @@ func New(cfg config.Config) *fx.App {
 		fx.Provide(idempotency.New),
 		fx.Provide(observability.NewMetrics),
 		outbound.Module,
+		fx.Provide(newApplicationVerifier),
 		fx.Provide(authorization.New),
 		SearchAccessModule,
 		searchstore.Module,

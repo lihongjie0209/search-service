@@ -16,6 +16,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	platformeventbus "github.com/lihongjie0209/microservice-platform-go/eventbus"
+	applicationv1 "github.com/lihongjie0209/platform-protos/gen/go/platform/application/v1"
 	searchv1 "github.com/lihongjie0209/platform-protos/gen/go/platform/search/v1"
 	"github.com/lihongjie0209/search-service/internal/app"
 	"github.com/lihongjie0209/search-service/internal/auth"
@@ -74,6 +75,7 @@ func TestHTTPAndGRPCEndToEnd(t *testing.T) {
 	httpAddress := freeAddress(t)
 	grpcAddress := freeAddress(t)
 	const secret = "01234567890123456789012345678901"
+	applicationAddress := startAllowApplicationServer(t)
 	cfg := config.Config{
 		Runtime:       config.Runtime{ActiveProfile: "integration"},
 		App:           config.App{Name: "integration", Env: "integration", ShutdownTimeout: 10 * time.Second},
@@ -91,6 +93,7 @@ func TestHTTPAndGRPCEndToEnd(t *testing.T) {
 		JWT:           config.JWT{Issuer: "integration", Secret: secret, TTL: time.Hour},
 		Auth:          config.Auth{ClientID: "client", ClientSecret: "secret", SkipHTTPPaths: []string{"/api/v1/version"}, SkipGRPCMethods: []string{"/grpc.health.v1.Health/*"}, PSK: config.PSK{Enabled: true, Key: secret, GRPCMethods: []string{"/platform.search.v1.SearchService/Batch*"}}},
 		Idempotency:   config.Idempotency{Enabled: true, ProcessingTTL: 30 * time.Second, ResultTTL: time.Hour, FailureTTL: time.Minute},
+		Outbound:      config.Outbound{GRPC: map[string]config.GRPCUpstream{"application": {Target: applicationAddress, Timeout: 2 * time.Second, Retry: config.Retry{MaxAttempts: 1, InitialBackoff: time.Millisecond, MaxBackoff: time.Millisecond}}}},
 	}
 	application := app.New(cfg)
 	if err := application.Start(ctx); err != nil {
@@ -125,7 +128,7 @@ func TestHTTPAndGRPCEndToEnd(t *testing.T) {
 	}
 	searchClient := searchv1.NewSearchServiceClient(connection)
 	pskCtx := metadata.AppendToOutgoingContext(ctx, "authorization", "PSK "+secret)
-	document := &searchv1.SearchDocument{Id: "tenant-1:app:application:1", TenantId: "tenant-1", SourceService: "application-service", DocumentType: "application", SourceId: "1", Title: "Platform Console", SourceVersion: 1, VisibilityTokens: []string{"user:client"}}
+	document := &searchv1.SearchDocument{Id: "tenant-1:app:application:1", TenantId: "tenant-1", ApplicationId: "app-1", SourceService: "application-service", DocumentType: "application", SourceId: "1", Title: "Platform Console", SourceVersion: 1, VisibilityTokens: []string{"user:client"}}
 	if _, err := searchClient.BatchUpsertDocuments(pskCtx, &searchv1.BatchUpsertDocumentsRequest{Documents: []*searchv1.SearchDocument{document}}); err != nil {
 		t.Fatalf("PSK upsert: %v", err)
 	}
@@ -135,7 +138,7 @@ func TestHTTPAndGRPCEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	refreshResponse.Body.Close()
-	if status := postJSON(t, baseURL+"/api/v1/search/query", "Bearer "+token, "", `{"tenant_id":"tenant-1","query":"console"}`); status != http.StatusOK {
+	if status := postJSON(t, baseURL+"/api/v1/search/query", "Bearer "+token, "", `{"tenant_id":"tenant-1","application_ids":["app-1"],"query":"console"}`); status != http.StatusOK {
 		t.Fatalf("HTTP search status = %d", status)
 	}
 	publisher, err := serviceeventbus.New(ctx, cfg)
@@ -171,6 +174,31 @@ func TestHTTPAndGRPCEndToEnd(t *testing.T) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+type allowApplicationServer struct {
+	applicationv1.UnimplementedApplicationServiceServer
+}
+
+func (allowApplicationServer) BatchCheckTenantApplications(_ context.Context, request *applicationv1.BatchCheckTenantApplicationsRequest) (*applicationv1.BatchCheckTenantApplicationsResponse, error) {
+	decisions := make([]*applicationv1.TenantApplicationDecision, 0, len(request.GetApplicationIds()))
+	for _, applicationID := range request.GetApplicationIds() {
+		decisions = append(decisions, &applicationv1.TenantApplicationDecision{ApplicationId: applicationID, Granted: true})
+	}
+	return &applicationv1.BatchCheckTenantApplicationsResponse{Decisions: decisions}, nil
+}
+
+func startAllowApplicationServer(t *testing.T) string {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := grpc.NewServer()
+	applicationv1.RegisterApplicationServiceServer(server, allowApplicationServer{})
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { server.Stop(); _ = listener.Close() })
+	return listener.Addr().String()
 }
 
 func startNATS(t *testing.T, ctx context.Context) string {

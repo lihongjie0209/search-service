@@ -223,6 +223,8 @@ func searchAppError(err error) error {
 		return apperror.Invalid(err.Error(), err)
 	case errors.Is(err, searchapp.ErrNotFound):
 		return apperror.NotFound("search document not found")
+	case errors.Is(err, searchapp.ErrForbidden):
+		return apperror.Forbidden("application access denied")
 	case errors.Is(err, searchapp.ErrUnavailable):
 		return apperror.Unavailable("search unavailable", err)
 	default:

@@ -42,6 +42,21 @@ opensearch:
   addresses: []
 outbound:
   grpc:
+    application:
+      target: dns:///application-service.platform.svc.cluster.local:9090
+      timeout: 5s
+      retry:
+        max_attempts: 3
+        initial_backoff: 100ms
+        max_backoff: 1s
+        methods: [/platform.application.v1.ApplicationService/BatchCheckTenantApplications]
+      breaker: {enabled: true, failure_threshold: 5, open_timeout: 30s}
+      tls:
+        enabled: true
+        server_name: application-service
+        ca_file: /etc/search-service/tls/ca.crt
+        cert_file: /etc/search-service/tls/tls.crt
+        key_file: /etc/search-service/tls/tls.key
     authorization:
       target: dns:///authorization-service.platform.svc.cluster.local:9090
       timeout: 5s
