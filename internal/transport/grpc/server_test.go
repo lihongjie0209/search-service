@@ -4,13 +4,34 @@ import (
 	"testing"
 	"time"
 
+	platformauthz "github.com/lihongjie0209/microservice-platform-go/authz"
 	platformprincipal "github.com/lihongjie0209/microservice-platform-go/principal"
+	searchv1 "github.com/lihongjie0209/platform-protos/gen/go/platform/search/v1"
 	"github.com/lihongjie0209/search-service/internal/auth"
 	"github.com/lihongjie0209/search-service/internal/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+func TestSearchGRPCRequirementCoversMethodsAndScopes(t *testing.T) {
+	t.Parallel()
+	resolve := searchGRPCRequirement(true)
+	for _, method := range []string{searchv1.SearchService_Search_FullMethodName, searchv1.SearchService_Suggest_FullMethodName, searchv1.SearchService_GetDocument_FullMethodName, searchv1.SearchService_BatchUpsertDocuments_FullMethodName, searchv1.SearchService_BatchDeleteDocuments_FullMethodName} {
+		requirement, ok := resolve(method)
+		if !ok || requirement.Resource == "" || requirement.Action == "" {
+			t.Fatalf("method %q requirement = %+v, %v", method, requirement, ok)
+		}
+	}
+	query, _ := resolve(searchv1.SearchService_Search_FullMethodName)
+	upsert, _ := resolve(searchv1.SearchService_BatchUpsertDocuments_FullMethodName)
+	if query.Scope != platformauthz.ScopePrincipal || upsert.Scope != platformauthz.ScopePlatform {
+		t.Fatalf("unexpected scopes: query=%v upsert=%v", query.Scope, upsert.Scope)
+	}
+	if _, ok := searchGRPCRequirement(false)(searchv1.SearchService_Search_FullMethodName); ok {
+		t.Fatal("disabled authorization must not enforce")
+	}
+}
 
 func TestAuthenticateGRPC_PSKWildcard(t *testing.T) {
 	t.Parallel()

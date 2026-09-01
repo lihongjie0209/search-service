@@ -35,6 +35,8 @@ idempotency:
 observability:
   metrics_enabled: true
   tracing_enabled: false
+authorization:
+  enabled: true
 opensearch:
   enabled: true
   addresses: []

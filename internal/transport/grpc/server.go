@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	platformauthz "github.com/lihongjie0209/microservice-platform-go/authz"
 	platformprincipal "github.com/lihongjie0209/microservice-platform-go/principal"
 	searchv1 "github.com/lihongjie0209/platform-protos/gen/go/platform/search/v1"
 	"github.com/lihongjie0209/search-service/internal/auth"
@@ -42,11 +43,11 @@ type Server struct {
 	logger  *slog.Logger
 }
 
-func NewServer(lc fx.Lifecycle, cfg config.Config, authService *auth.Service, healthService *apphealth.Service, searchService *searchapp.Service, access *searchauth.Resolver, metrics *observability.Metrics, logger *slog.Logger) (*Server, error) {
+func NewServer(lc fx.Lifecycle, cfg config.Config, authService *auth.Service, authorizer platformauthz.Authorizer, healthService *apphealth.Service, searchService *searchapp.Service, access *searchauth.Resolver, metrics *observability.Metrics, logger *slog.Logger) (*Server, error) {
 	options := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(cfg.GRPC.MaxReceiveBytes),
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.ChainUnaryInterceptor(environmentInterceptor(cfg.Runtime.ActiveProfile), requestIDInterceptor, idempotencyInterceptor, recoveryInterceptor(logger), authInterceptor(authService, cfg.Auth), metricsInterceptor(metrics, logger)),
+		grpc.ChainUnaryInterceptor(environmentInterceptor(cfg.Runtime.ActiveProfile), requestIDInterceptor, idempotencyInterceptor, recoveryInterceptor(logger), authInterceptor(authService, cfg.Auth), platformauthz.UnaryServerInterceptor(authorizer, searchGRPCRequirement(cfg.Authorization.Enabled)), metricsInterceptor(metrics, logger)),
 		grpc.ChainStreamInterceptor(environmentStreamInterceptor(cfg.Runtime.ActiveProfile), requestIDStreamInterceptor, idempotencyStreamInterceptor, recoveryStreamInterceptor(logger), authStreamInterceptor(authService, cfg.Auth), metricsStreamInterceptor(metrics, logger)),
 	}
 	if cfg.GRPC.TLS.Enabled {
@@ -65,6 +66,23 @@ func NewServer(lc fx.Lifecycle, cfg config.Config, authService *auth.Service, he
 	server := &Server{server: grpcServer, address: cfg.GRPC.Address, logger: logger}
 	lc.Append(fx.Hook{OnStart: server.start(cfg.GRPC.Enabled), OnStop: server.stop})
 	return server, nil
+}
+
+func searchGRPCRequirement(enabled bool) platformauthz.GRPCResolver {
+	return func(method string) (platformauthz.Requirement, bool) {
+		if !enabled {
+			return platformauthz.Requirement{}, false
+		}
+		requirements := map[string]platformauthz.Requirement{
+			searchv1.SearchService_Search_FullMethodName:               {Resource: "search.document", Action: "search", Scope: platformauthz.ScopePrincipal},
+			searchv1.SearchService_Suggest_FullMethodName:              {Resource: "search.document", Action: "suggest", Scope: platformauthz.ScopePrincipal},
+			searchv1.SearchService_GetDocument_FullMethodName:          {Resource: "search.document", Action: "read", Scope: platformauthz.ScopePrincipal},
+			searchv1.SearchService_BatchUpsertDocuments_FullMethodName: {Resource: "search.index", Action: "upsert", Scope: platformauthz.ScopePlatform},
+			searchv1.SearchService_BatchDeleteDocuments_FullMethodName: {Resource: "search.index", Action: "delete", Scope: platformauthz.ScopePlatform},
+		}
+		requirement, ok := requirements[method]
+		return requirement, ok
+	}
 }
 
 func (s *Server) start(enabled bool) func(context.Context) error {
