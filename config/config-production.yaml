@@ -44,6 +44,7 @@ outbound:
   grpc:
     application:
       target: dns:///application-service.platform.svc.cluster.local:9090
+      auth: {type: psk, token: ""}
       timeout: 5s
       retry:
         max_attempts: 3
