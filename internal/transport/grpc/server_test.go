@@ -1,6 +1,7 @@
 package grpctransport
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -13,6 +14,24 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+func TestConfiguredIdempotencyOnlyProtectsProjectionMutations(t *testing.T) {
+	cfg, err := config.Load("../../../config/config.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{searchv1.SearchService_BatchUpsertDocuments_FullMethodName, searchv1.SearchService_BatchDeleteDocuments_FullMethodName}
+	for _, method := range want {
+		if !slices.Contains(cfg.Idempotency.GRPCMethods, method) {
+			t.Fatalf("missing mutation method %q", method)
+		}
+	}
+	for _, method := range []string{searchv1.SearchService_Search_FullMethodName, searchv1.SearchService_Suggest_FullMethodName, searchv1.SearchService_GetDocument_FullMethodName} {
+		if slices.Contains(cfg.Idempotency.GRPCMethods, method) {
+			t.Fatalf("query method %q must not be idempotency-cached", method)
+		}
+	}
+}
 
 func TestSearchGRPCRequirementCoversMethodsAndScopes(t *testing.T) {
 	t.Parallel()

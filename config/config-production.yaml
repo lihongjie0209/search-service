@@ -32,6 +32,7 @@ rate_limit:
   enabled: true
 idempotency:
   enabled: true
+  grpc_methods: [/platform.search.v1.SearchService/BatchUpsertDocuments, /platform.search.v1.SearchService/BatchDeleteDocuments]
 observability:
   metrics_enabled: true
   tracing_enabled: false

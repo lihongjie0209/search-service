@@ -20,6 +20,21 @@ func TestConfig_AuthorizationRequiresConfiguredUpstream(t *testing.T) {
 	}
 }
 
+func TestLoad_IdempotencyGRPCMethodEnvironmentOverride(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("idempotency:\n  grpc_methods: [/old.Service/Create]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("APP_IDEMPOTENCY_GRPC_METHODS", "[/platform.search.v1.SearchService/BatchUpsertDocuments, /platform.search.v1.SearchService/BatchDeleteDocuments]")
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(cfg.Idempotency.GRPCMethods, ","); got != "/platform.search.v1.SearchService/BatchUpsertDocuments,/platform.search.v1.SearchService/BatchDeleteDocuments" {
+		t.Fatalf("GRPCMethods=%q", got)
+	}
+}
+
 func TestConfig_OpenSearchRequiresApplicationUpstream(t *testing.T) {
 	cfg, err := Load("../../config/config.yaml")
 	if err != nil {
